@@ -1,6 +1,8 @@
 # Implementation plan
 
-Status after the menu, four lectures, practice section, tests, and a browser check of the navigation.
+Status after the menu, the Image Processing lectures, and the Signal Analysis lectures from the Michaelmas notes.
+
+Signal Analysis is a second laboratory under B14. It does not replace Image Processing. Its sheet page is still a placeholder.
 
 ## Completed
 

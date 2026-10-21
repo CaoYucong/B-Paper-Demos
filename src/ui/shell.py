@@ -18,6 +18,7 @@ from src.ui.experiments import (
     L4_EXPERIMENTS,
     section_anchor,
 )
+from src.ui.signal_lab import render_signal_home, render_signal_lecture1, render_signal_lecture2, render_signal_lecture3, render_signal_lecture4, render_signal_practice, signal_groups
 from src.ui.i18n import forget_translation_keys, language_switch, say, t
 from src.ui.home import render_course_home
 from src.ui.lecture1_page import render_lecture1
@@ -132,7 +133,7 @@ def current_image() -> tuple[np.ndarray, str]:
 def render_papers() -> None:
     language_switch()
     st.title("B Paper Demonstrations")
-    st.caption("Choose a paper, then a module. Image Processing is the module available now. / 先选课程，再选模块。目前可用的是图像处理。")
+    st.caption("Choose a paper, then a module. Image Processing and Signal Analysis are available. / 先选课程，再选模块。图像处理和信号分析都可以使用。")
     columns = st.columns(3)
     for column, paper in zip(columns, PAPERS):
         with column:
@@ -237,10 +238,8 @@ def render_missing(route: Route) -> None:
     _leave("← Home / 返回首页", home_route(), "back-missing")
 
 
-def _contents() -> None:
-    st.markdown(f"**{t('On this page', '本页目录')}**")
-    st.caption(t("Scroll in lecture order, or jump to a section.", "按讲义顺序往下读，也可以跳到某一节。"))
-    groups = (
+def _image_groups():
+    return (
         ("home", "Overview", "总览", ()),
         ("l1", "Lecture 1", "第 1 讲", L1_EXPERIMENTS),
         ("l2", "Lecture 2", "第 2 讲", L2_EXPERIMENTS),
@@ -248,6 +247,11 @@ def _contents() -> None:
         ("l4", "Lecture 4", "第 4 讲", L4_EXPERIMENTS),
         ("practice", "Practice", "练习", ()),
     )
+
+
+def _contents(groups) -> None:
+    st.markdown(f"**{t('On this page', '本页目录')}**")
+    st.caption(t("Scroll in lecture order, or jump to a section.", "按讲义顺序往下读，也可以跳到某一节。"))
     for lecture_id, en, zh, experiments in groups:
         st.markdown(f"[{t(en, zh)}](#{lecture_id})")
         for item in experiments:
@@ -262,7 +266,7 @@ def _sidebar(route: Route) -> None:
         st.header(t("B14 · Image Processing", "B14 · 图像处理"))
         st.caption(t("B14 Image Processing Lab", "B14 图像处理实验"))
         _leave(f"← {module.title_en} / {module.title_zh}", topic_route(paper, module), "back-modules")
-        _contents()
+        _contents(_image_groups())
         st.divider()
         st.markdown(f"**{t('Image workspace', '图像工作区')}**")
         st.selectbox("Resolution / 分辨率", [64, 128, 256], key="image_size")
@@ -330,6 +334,41 @@ def _scroll_to_hash() -> None:
     )
 
 
+def _reset_signal() -> None:
+    for key in list(st.session_state.keys()):
+        if key in {"sig_seed", "sig_reset"} or key.startswith("sig_seed@@") or key.startswith("sig_reset@@"):
+            continue
+        if key.startswith("sig_") or key.startswith("sig-"):
+            del st.session_state[key]
+    st.rerun()
+
+
+def _sidebar_signal(route: Route) -> None:
+    paper = paper_of(route)
+    module = module_of(route)
+    with st.sidebar:
+        language_switch()
+        st.header(t("B14 · Signal Analysis", "B14 · 信号分析"))
+        st.caption(t("B14 Signal Analysis", "B14 信号分析"))
+        _leave(f"← {module.title_en} / {module.title_zh}", topic_route(paper, module), "back-signal")
+        _contents(signal_groups())
+        st.divider()
+        st.number_input("Random seed / 随机种子", min_value=0, max_value=100000, step=1, key="sig_seed")
+        if st.button("Reset signal values / 恢复信号实验参数", key="sig_reset"):
+            _reset_signal()
+
+
+def render_signal_lab(route: Route) -> None:
+    _sidebar_signal(route)
+    render_signal_home()
+    render_signal_lecture1()
+    render_signal_lecture2()
+    render_signal_lecture3()
+    render_signal_lecture4()
+    render_signal_practice()
+    _scroll_to_hash()
+
+
 def render_lab(route: Route) -> None:
     _sidebar(route)
     image, image_label = current_image()
@@ -343,7 +382,11 @@ def render_lab(route: Route) -> None:
 
 
 def render_lecture(route: Route) -> None:
-    if module_of(route).id == "image-processing":
+    module_id = module_of(route).id
+    if module_id == "image-processing":
         render_lab(route)
+        return
+    if module_id == "signal-processing":
+        render_signal_lab(route)
         return
     render_planned(route)

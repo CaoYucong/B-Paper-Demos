@@ -13,8 +13,10 @@ def test_catalog_keeps_extensions_as_placeholders():
     image = next(module for module in b14.modules if module.id == "image-processing")
     signal = next(module for module in b14.modules if module.id == "signal-processing")
     assert image.status == "available"
-    assert signal.status == "planned"
+    assert signal.status == "available"
+    assert signal.title_en == "Signal Analysis"
     assert [section.id for section in image.sections] == ["home", "l1", "l2", "l3", "l4", "practice"]
+    assert [section.id for section in signal.sections] == ["home", "l1", "l2", "l3", "l4", "practice"]
     assert paper_by_id("b15").status == "planned"
 
 

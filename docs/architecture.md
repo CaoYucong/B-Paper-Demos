@@ -15,8 +15,9 @@ the hash. The hash is the experiment name with spaces and punctuation
 removed. The Image Processing lecture page frames the Streamlit laboratory
 at `/_lab`, because Streamlit cannot own a nested pathname.
 
-- B14 is available. Its Image Processing module is available and opens the
-  laboratory. Signal Processing is registered as planned.
+- B14 is available. Image Processing and Signal Analysis both open a
+  laboratory. Signal Analysis is the Michaelmas signal course; its directory
+  is `/home/B14/SignalAnalysis/Lecture/`.
 - B15 and B16 are reserved papers with no invented course titles.
 
 Each module has two tracks. `Lecture` opens the laboratory when that
@@ -53,6 +54,9 @@ New code is organised by lecture:
 - `src/lecture4/` storage and RLE, Huffman, DCT, the JPEG-like pipeline,
   median, bilateral, non-local means, inpainting
 - `src/practice/problems.py` original exercises and the quiz
+- `src/signal/` the Signal Analysis formulas: analogue filters, digital
+  filters, FIR and IIR design, DFT and autoregressive spectra
+- `src/ui/signal_lab.py` the Signal Analysis page
 
 `src/ui/` is the bilingual shell. `src/ui/experiments.py` holds the
 experiment names used both by the select boxes and by the practice links.

@@ -170,8 +170,8 @@ def menu_document(route: LabRoute) -> str:
         body = (
             "<h1>B Paper Demonstrations</h1>"
             + _text(
-                "Choose a paper, then a module. Image Processing is the module available now.",
-                "先选课程，再选模块。目前可用的是图像处理。",
+                "Choose a paper, then a module. Image Processing and Signal Analysis are available.",
+                "先选课程，再选模块。图像处理和信号分析都可以使用。",
             )
             + f"<div class='grid'>{''.join(cards)}</div>"
         )
@@ -282,7 +282,7 @@ async def serve_page(request: Request) -> Response:
     route = parse_path(request.url.path)
     if route.kind != "missing" and request.url.path != site_url(route):
         return _redirect(site_url(route))
-    if route.kind == "lecture" and route.module_id == "image-processing":
+    if route.kind == "lecture" and module_of(route).status == "available":
         return HTMLResponse(lecture_document(route), headers={"Cache-Control": "no-cache"})
     status = 404 if route.kind == "missing" else 200
     return HTMLResponse(menu_document(route), status_code=status, headers={"Cache-Control": "no-cache"})

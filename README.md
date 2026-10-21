@@ -1,6 +1,8 @@
 # B Paper Demonstrations
 
-B Paper Demonstrations is a local laboratory for Oxford Engineering B-paper material. The public pages are directories. 
+B Paper Demonstrations is a local laboratory for Oxford Engineering B-paper material.
+
+B14 has two laboratories. Image Processing is `/home/B14/ImageProcessing/Lecture/`. Signal Analysis, from the Michaelmas signal lectures, is `/home/B14/SignalAnalysis/Lecture/`. Each topic has a Sheet page; those sheets are placeholders. B15 and B16 are reserved. 
 
 ## Addresses
 

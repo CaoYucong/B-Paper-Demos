@@ -46,6 +46,16 @@ class Paper:
     modules: tuple[Module, ...] = ()
 
 
+SIGNAL_ANALYSIS_SECTIONS: tuple[LabSection, ...] = (
+    LabSection("home", "Home — Course Overview", "首页 — 课程总览"),
+    LabSection("l1", "Lecture 1 — Introduction and Analogue Filters", "第 1 讲 — 引言与模拟滤波器"),
+    LabSection("l2", "Lecture 2 — Digital Filters", "第 2 讲 — 数字滤波器"),
+    LabSection("l3", "Lecture 3 — Design of Digital Filters", "第 3 讲 — 数字滤波器设计"),
+    LabSection("l4", "Lecture 4 — Spectral Estimation", "第 4 讲 — 谱估计"),
+    LabSection("practice", "Practice — Concept Checks", "练习 — 概念检查"),
+)
+
+
 IMAGE_PROCESSING_SECTIONS: tuple[LabSection, ...] = (
     LabSection("home", "Home — Course Overview", "首页 — 课程总览"),
     LabSection("l1", "Lecture 1 — Image Enhancement", "第 1 讲 — 图像增强"),
@@ -63,8 +73,8 @@ PAPERS: tuple[Paper, ...] = (
         title_en="Information Engineering",
         title_zh="信息工程",
         status="available",
-        summary_en="Image Processing is available. Signal Processing is reserved for a later module.",
-        summary_zh="图像处理模块已可用。信号处理模块预留，稍后加入。",
+        summary_en="Image Processing and Signal Analysis are both available.",
+        summary_zh="图像处理和信号分析都可以使用。",
         modules=(
             Module(
                 id="image-processing",
@@ -77,11 +87,12 @@ PAPERS: tuple[Paper, ...] = (
             ),
             Module(
                 id="signal-processing",
-                title_en="Signal Processing",
-                title_zh="信号处理",
-                status="planned",
-                summary_en="Reserved. Lecture notes exist separately and are not implemented in this laboratory.",
-                summary_zh="预留。讲义单独存在，本实验尚未实现。",
+                title_en="Signal Analysis",
+                title_zh="信号分析",
+                status="available",
+                summary_en="B14 Signal Analysis. Four lectures: analogue filters, digital filters, FIR and IIR design, spectral estimation.",
+                summary_zh="B14 信号分析。四讲：模拟滤波器、数字滤波器、FIR 与 IIR 设计、谱估计。",
+                sections=SIGNAL_ANALYSIS_SECTIONS,
             ),
         ),
     ),

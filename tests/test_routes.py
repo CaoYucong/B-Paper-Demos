@@ -49,8 +49,11 @@ def test_unknown_path_is_kept_for_the_not_found_page():
     assert route.path == "home/B14/Nope"
 
 
-def test_signal_processing_sheet_is_a_distinct_page():
-    route = parse_path("home/B14/SignalProcessing/Sheet")
+def test_signal_analysis_sheet_is_a_distinct_page():
+    route = parse_path("home/B14/SignalAnalysis/Sheet")
     assert route.kind == "sheet"
     assert route.module_id == "signal-processing"
-    assert route.path == "home/B14/SignalProcessing/Sheet"
+    assert route.path == "home/B14/SignalAnalysis/Sheet"
+    lecture = parse_path("home/B14/SignalAnalysis/Lecture")
+    assert lecture.kind == "lecture"
+    assert lecture.path == "home/B14/SignalAnalysis/Lecture"
