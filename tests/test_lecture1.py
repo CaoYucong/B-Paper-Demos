@@ -4,13 +4,13 @@ from __future__ import annotations
 
 import numpy as np
 
-from src.lecture1.fundamentals import bayer_rggb, demosaic_bilinear, quantise, synthetic_rgb, temporal_average
-from src.lecture1.gaussian import gaussian_filter, gaussian_filter_separable, gaussian_kernel_2d, multiplications_per_pixel
-from src.lecture1.histogram import coin_image, equalise_image, equalise_regions
-from src.lecture1.matched_filter import add_noise, matched_response, place_template, template_image
-from src.lecture1.point_operations import apply_point
-from src.lecture1.sobel import rotated_step, sobel, sobel_separable
-from src.lecture1.spatial_filters import KERNELS, convolve2d, correlate2d, neighbourhood, valid_output_shape
+from src.b14.image_processing.lecture1.fundamentals import bayer_rggb, demosaic_bilinear, quantise, synthetic_rgb, temporal_average
+from src.b14.image_processing.lecture1.gaussian import gaussian_filter, gaussian_filter_separable, gaussian_kernel_2d, multiplications_per_pixel
+from src.b14.image_processing.lecture1.histogram import bin_counts, coin_image, equalise_image, equalise_regions
+from src.b14.image_processing.lecture1.matched_filter import add_noise, matched_response, place_template, template_image
+from src.b14.image_processing.lecture1.point_operations import apply_point
+from src.b14.image_processing.lecture1.sobel import rotated_step, sobel, sobel_separable
+from src.b14.image_processing.lecture1.spatial_filters import KERNELS, convolve2d, correlate2d, neighbourhood, valid_output_shape
 
 
 def test_quantise_endpoints_and_one_bit():
@@ -36,9 +36,16 @@ def test_histogram_equalisation_keeps_positions_and_constant_regions():
     constant = np.full((8, 8), 0.3)
     unchanged, _counts, _cdf = equalise_image(constant)
     assert np.allclose(unchanged, constant)
+    before = bin_counts(image, 64)
+    after = bin_counts(mapped, 64)
+    assert before.sum() == after.sum() == image.size
+    assert not np.array_equal(before, after)
     regional = equalise_regions(image, disk)
     assert regional.shape == image.shape
     assert np.std(regional[disk]) > np.std(image[disk])
+    disk_counts = bin_counts(regional[disk], 64)
+    background_counts = bin_counts(regional[~disk], 64)
+    assert disk_counts.sum() + background_counts.sum() == image.size
 
 
 def test_correlation_flips_for_convolution():

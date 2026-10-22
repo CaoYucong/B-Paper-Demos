@@ -3,7 +3,13 @@
 from __future__ import annotations
 
 from src.catalog import PAPERS
-from src.ui.experiments import L1_EXPERIMENTS, L2_EXPERIMENTS, L3_EXPERIMENTS, L4_EXPERIMENTS, section_anchor
+from src.b14.image_processing.experiments import (
+    L1_EXPERIMENTS,
+    L2_EXPERIMENTS,
+    L3_EXPERIMENTS,
+    L4_EXPERIMENTS,
+)
+from src.ui.anchors import section_anchor
 from src.ui.routes import home_route, paper_route, parse_path, site_url, topic_route, track_route
 
 

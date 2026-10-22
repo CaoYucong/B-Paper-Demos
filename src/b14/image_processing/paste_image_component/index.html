@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    html, body {
+      margin: 0;
+      font-family: "Source Sans 3", "Source Sans Pro", "Segoe UI", sans-serif;
+      font-size: 14px;
+      line-height: 1.35;
+      color: rgb(49, 51, 63);
+    }
+    #box {
+      border: 1px dashed rgba(49, 51, 63, 0.45);
+      border-radius: 8px;
+      padding: 10px 12px;
+      min-height: 2.6em;
+      cursor: text;
+      background: rgba(255, 255, 255, 0.55);
+      outline: none;
+      white-space: normal;
+    }
+    #box:focus { border-color: rgb(255, 75, 75); }
+    button {
+      margin-top: 8px;
+      width: 100%;
+      font: inherit;
+      padding: 6px 10px;
+      border-radius: 8px;
+      border: 1px solid rgba(49, 51, 63, 0.25);
+      background: white;
+      color: inherit;
+      cursor: pointer;
+    }
+    #status { margin-top: 6px; min-height: 1.2em; }
+    #status.error { color: rgb(255, 75, 75); }
+  </style>
+</head>
+<body>
+  <div id="box" contenteditable="true" role="textbox" aria-multiline="false"></div>
+  <button id="read" type="button"></button>
+  <div id="status"></div>
+  <script>
+    const Streamlit = {
+      setComponentReady() {
+        window.parent.postMessage({
+          isStreamlitMessage: true,
+          type: "streamlit:componentReady",
+          apiVersion: 1,
+        }, "*");
+      },
+      setFrameHeight(height) {
+        window.parent.postMessage({
+          isStreamlitMessage: true,
+          type: "streamlit:setFrameHeight",
+          height,
+        }, "*");
+      },
+      setComponentValue(value) {
+        window.parent.postMessage({
+          isStreamlitMessage: true,
+          type: "streamlit:setComponentValue",
+          value,
+          dataType: "json",
+        }, "*");
+      },
+    };
+
+    const box = document.getElementById("box");
+    const button = document.getElementById("read");
+    const status = document.getElementById("status");
+    let args = {};
+
+    function fit() {
+      window.requestAnimationFrame(() => {
+        Streamlit.setFrameHeight(Math.ceil(document.documentElement.scrollHeight));
+      });
+    }
+
+    function paint() {
+      box.textContent = args.prompt || "";
+      button.textContent = args.button || "";
+      fit();
+    }
+
+    function fail(text) {
+      status.className = "error";
+      status.textContent = text || "";
+      fit();
+    }
+
+    function blobToBase64(blob) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result).split(",")[1]);
+        reader.onerror = () => reject(reader.error);
+        reader.readAsDataURL(blob);
+      });
+    }
+
+    async function sendFile(file) {
+      const bitmap = await createImageBitmap(file);
+      const scale = Math.min(1, 1024 / Math.max(bitmap.width, bitmap.height));
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+      canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+      const context = canvas.getContext("2d");
+      context.fillStyle = "#ffffff";
+      context.fillRect(0, 0, canvas.width, canvas.height);
+      context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+      const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.9));
+      if (!blob) throw new Error("empty");
+      Streamlit.setComponentValue({
+        token: String(Date.now()),
+        jpeg: await blobToBase64(blob),
+      });
+      status.className = "";
+      status.textContent = args.done || "";
+      fit();
+    }
+
+    function imageFile(list) {
+      for (const file of list || []) {
+        if (file && typeof file.type === "string" && file.type.startsWith("image/")) return file;
+      }
+      return null;
+    }
+
+    function imageFromItems(items) {
+      for (const item of items || []) {
+        if (item.kind === "file" && item.type.startsWith("image/")) return item.getAsFile();
+      }
+      return null;
+    }
+
+    box.addEventListener("paste", async (event) => {
+      event.preventDefault();
+      const data = event.clipboardData;
+      const file = imageFile(data && data.files) || imageFromItems(data && data.items);
+      if (!file) {
+        fail(args.empty);
+        return;
+      }
+      try {
+        await sendFile(file);
+      } catch (error) {
+        fail(String(error && error.message || error));
+      }
+    });
+
+    box.addEventListener("input", () => {
+      if (box.textContent !== (args.prompt || "")) box.textContent = args.prompt || "";
+    });
+
+    box.addEventListener("dragover", (event) => event.preventDefault());
+    box.addEventListener("drop", async (event) => {
+      event.preventDefault();
+      const file = imageFile(event.dataTransfer && event.dataTransfer.files);
+      if (!file) {
+        fail(args.empty);
+        return;
+      }
+      try {
+        await sendFile(file);
+      } catch (error) {
+        fail(String(error && error.message || error));
+      }
+    });
+
+    button.addEventListener("click", async () => {
+      if (!navigator.clipboard || !navigator.clipboard.read) {
+        fail(args.blocked);
+        return;
+      }
+      try {
+        const items = await navigator.clipboard.read();
+        for (const item of items) {
+          const type = item.types.find((name) => name.startsWith("image/"));
+          if (!type) continue;
+          const blob = await item.getType(type);
+          await sendFile(new File([blob], "clipboard", { type }));
+          return;
+        }
+        fail(args.empty);
+      } catch (error) {
+        fail(args.blocked);
+      }
+    });
+
+    window.addEventListener("message", (event) => {
+      const data = event.data;
+      if (!data || data.type !== "streamlit:render") return;
+      args = data.args || {};
+      if (data.theme) {
+        if (data.theme.textColor) {
+          document.body.style.color = data.theme.textColor;
+          button.style.color = data.theme.textColor;
+        }
+        if (data.theme.backgroundColor) button.style.background = data.theme.backgroundColor;
+        if (data.theme.secondaryBackgroundColor) box.style.background = data.theme.secondaryBackgroundColor;
+      }
+      paint();
+    });
+
+    Streamlit.setComponentReady();
+    Streamlit.setFrameHeight(150);
+  </script>
+</body>
+</html>

@@ -23,3 +23,7 @@ Dependencies are NumPy, SciPy, Matplotlib, Pillow, Plotly, Streamlit, and pytest
 
 The interface language is 中文, English, or Bilingual. The default is Bilingual.
 
+Lecture 3 keeps the original degradation, Wiener, and MAP demonstrations. After the panorama photographs, a synthetic grid shows why shifted low-resolution frames add samples, what the matrix M does, and how multi-frame MAP searches for a high-resolution image. Blind deblurring is a short one-dimensional demo and is marked not examinable.
+
+The file tree and the rules for extending it are in `docs/structure.md`.
+

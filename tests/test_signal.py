@@ -6,7 +6,7 @@ import math
 
 import numpy as np
 
-from src.signal.analog import (
+from src.b14.signal_analysis.lecture1.analog import (
     BUTTERWORTH_TABLE,
     butterworth_order,
     butterworth_polynomial_gain,
@@ -17,7 +17,7 @@ from src.signal.analog import (
     sampled_sinusoid,
     stable_butterworth_poles,
 )
-from src.signal.design import (
+from src.b14.signal_analysis.lecture3.design import (
     EXAMPLE_FIR,
     EXAMPLE_RECURSION,
     HANNING_TAPS,
@@ -29,7 +29,7 @@ from src.signal.design import (
     iir_frequency_response,
     windowed_fir,
 )
-from src.signal.digital import (
+from src.b14.signal_analysis.lecture2.digital import (
     PARABOLIC_TAPS,
     alias_pair,
     causal_stable_alpha,
@@ -37,8 +37,8 @@ from src.signal.digital import (
     parabolic_centre,
     parabolic_closed_form,
 )
-from src.signal.practice import PROBLEMS, QUIZ, grade_numeric
-from src.signal.spectral import (
+from src.b14.signal_analysis.practice.problems import PROBLEMS, QUIZ, grade_numeric
+from src.b14.signal_analysis.lecture4.spectral import (
     DFT_EXAMPLE_SPECTRUM,
     REPORTED_AR4,
     ar_psd,
@@ -195,14 +195,13 @@ def test_ar_fit_recovers_a_synthesised_model():
 
 
 def test_practice_anchors_exist_on_the_signal_page():
-    from src.ui.experiments import (
+    from src.b14.signal_analysis.experiments import (
         SA_L1_EXPERIMENTS,
         SA_L2_EXPERIMENTS,
         SA_L3_EXPERIMENTS,
         SA_L4_EXPERIMENTS,
-        section_anchor,
     )
-
+    from src.ui.anchors import section_anchor
     drawn = {
         section_anchor(item)
         for group in (SA_L1_EXPERIMENTS, SA_L2_EXPERIMENTS, SA_L3_EXPERIMENTS, SA_L4_EXPERIMENTS)

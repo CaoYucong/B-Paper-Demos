@@ -5,8 +5,8 @@ from __future__ import annotations
 import numpy as np
 from scipy.ndimage import gaussian_filter
 
-from src.degradation import degrade
-from src.synthetic_images import geometric_shapes
+from src.b14.image_processing.lecture3.degradation import degrade
+from src.b14.image_processing.synthetic_images import geometric_shapes
 
 
 def test_fixed_seed_is_deterministic_and_changes_with_seed():
@@ -37,8 +37,8 @@ def test_periodic_blur_is_not_scipy_reflect_gaussian():
 
 
 def test_blur_reduces_the_jump_of_a_stripe_image():
-    from src.operators import forward_diff_x, gradient_squared_norm
-    from src.synthetic_images import repeated_stripes
+    from src.b14.image_processing.lecture3.operators import forward_diff_x, gradient_squared_norm
+    from src.b14.image_processing.synthetic_images import repeated_stripes
 
     image = repeated_stripes(48)
     observation = degrade(image, sigma=2.0, noise_std=0.0, seed=0)

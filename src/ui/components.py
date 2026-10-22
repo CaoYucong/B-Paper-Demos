@@ -9,9 +9,9 @@ import plotly.graph_objects as go
 import streamlit as st
 from PIL import Image
 
-from src.ui.experiments import section_anchor
+from src.ui.anchors import section_anchor
 from src.ui.i18n import colour_notes, say, shown_label, t
-from src.visualization import display_limits, image_png
+from src.ui.visualization import display_limits, image_png
 
 
 def experiment_heading(lecture_id: str, item: tuple[str, str, str]) -> None:
@@ -62,14 +62,20 @@ def takeaways(pairs: list[tuple[str, str]]) -> None:
 
 
 def try_this(en: str, zh: str) -> None:
-    st.info(t("Try this", "试一试") + "\n\n" + t(en, zh))
+    st.markdown(
+        '<div class="b14-note b14-note-info">' + t("Try this", "试一试") + "<br><br>" + t(en, zh) + "</div>",
+        unsafe_allow_html=True,
+    )
 
 
-def show_array(image: np.ndarray, title: str, kind: str = "image") -> None:
+def show_array(image: np.ndarray, title: str, kind: str = "image", wide: bool = False) -> None:
     zmin, zmax, _note = display_limits(image, kind)
     colorscale = {"residual": "RdBu_r", "kernel": "Cividis", "otf": "Magma"}.get(kind, "Gray")
     array = np.asarray(image, dtype=np.float64)
-    st.image(image_png(array, shown_label(title), zmin=zmin, zmax=zmax, colorscale=colorscale), use_container_width=True)
+    st.image(
+        image_png(array, shown_label(title), zmin=zmin, zmax=zmax, colorscale=colorscale, wide=wide),
+        use_container_width=True,
+    )
     low = float(np.min(array))
     high = float(np.max(array))
     note_en, note_zh = colour_notes(kind, low, high)

@@ -7,8 +7,8 @@ import inspect
 import numpy as np
 import pytest
 
-from src.degradation import degrade
-from src.map_estimation import (
+from src.b14.image_processing.lecture3.degradation import degrade
+from src.b14.image_processing.lecture3.map_estimation import (
     compute_gradient,
     objective,
     objective_parts,
@@ -17,9 +17,9 @@ from src.map_estimation import (
     solve_map_fourier,
     step_size_from_fraction,
 )
-from src.metrics import mse
-from src.operators import apply_gradient_penalty, apply_otf, apply_otf_adjoint, forward_diff_x, forward_diff_y
-from src.synthetic_images import geometric_shapes, repeated_stripes
+from src.b14.image_processing.metrics import mse
+from src.b14.image_processing.lecture3.operators import apply_gradient_penalty, apply_otf, apply_otf_adjoint, forward_diff_x, forward_diff_y
+from src.b14.image_processing.synthetic_images import geometric_shapes, repeated_stripes
 
 
 def _small_problem(seed: int = 2):

@@ -18,7 +18,7 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-from src.settings import DEFAULTS
+from src.b14.image_processing.settings import DEFAULTS
 from src.ui.shell import (
     active_route,
     initialise_navigation,
@@ -42,6 +42,39 @@ div[data-testid="stMetric"] {
     padding: 0.45rem 0.7rem;
 }
 footer {visibility: hidden;}
+html[data-lang="en"] .b14-zh,
+html[data-lang="en"] .b14-sep,
+html[data-lang="zh"] .b14-en,
+html[data-lang="zh"] .b14-sep {display: none !important;}
+html[data-lang="en"] [data-testid="stElementContainer"]:has(.b14-only.b14-zh),
+html[data-lang="zh"] [data-testid="stElementContainer"]:has(.b14-only.b14-en) {display: none !important;}
+html[data-lang="both"] [data-testid="stElementContainer"]:has(.b14-only.b14-zh) [data-testid="stMarkdownContainer"] {
+    font-size: 0.92rem;
+    color: rgba(49, 51, 63, 0.72);
+}
+.b14-field {font-size: 14px; margin: 0.35rem 0 0.2rem;}
+.b14-lang {display: flex; flex-wrap: wrap; gap: 0.35rem; margin: 0 0 0.8rem;}
+.b14-lang button {
+    border: 1px solid #c5d0da;
+    background: #fff;
+    border-radius: 999px;
+    padding: 0.15rem 0.7rem;
+    cursor: pointer;
+    font: inherit;
+}
+html:not([data-lang]) .b14-lang [data-set-lang="both"],
+html[data-lang="both"] .b14-lang [data-set-lang="both"],
+html[data-lang="en"] .b14-lang [data-set-lang="en"],
+html[data-lang="zh"] .b14-lang [data-set-lang="zh"] {
+    background: #173f78;
+    color: #fff;
+    border-color: #173f78;
+}
+.b14-note {border-radius: 0.5rem; padding: 0.75rem 1rem; margin: 0.4rem 0 0.8rem;}
+.b14-note-info {background: #e8f1ff;}
+.b14-note-warning {background: #fff6e0;}
+.b14-note-success {background: #e7f6ec;}
+.b14-note-error {background: #fdecec;}
 </style>
 """
 
@@ -53,9 +86,10 @@ def _initialise_state() -> None:
 
 
 def main() -> None:
-    from src.ui.i18n import install
+    from src.ui.i18n import install, mount_language
 
     install()
+    mount_language()
     if sys.version_info < (3, 11):
         st.error("Python 3.11 or newer is required. / 需要 Python 3.11 或更高版本。")
         return

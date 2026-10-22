@@ -51,15 +51,32 @@ def test_signal_lecture_directory_is_a_laboratory_frame():
     response = _get("/home/B14/SignalAnalysis/Lecture/")
     assert response.status_code == 200
     page = response.body.decode()
-    assert 'src="/_lab/?embed=true&amp;path=home%2FB14%2FSignalAnalysis%2FLecture"' in page
+    assert 'data-src="/_lab/?embed=true&amp;path=home%2FB14%2FSignalAnalysis%2FLecture"' in page
+    assert "location.hash" in page
 
 
 def test_lecture_directory_is_the_laboratory_frame():
     response = _get("/home/B14/ImageProcessing/Lecture/")
     assert response.status_code == 200
     page = response.body.decode()
-    assert 'src="/_lab/?embed=true&amp;path=home%2FB14%2FImageProcessing%2FLecture"' in page
+    assert 'data-src="/_lab/?embed=true&amp;path=home%2FB14%2FImageProcessing%2FLecture"' in page
+    assert ' src="/_lab/' not in page
+    assert "data-pending" in page
+    assert "b14-language" in page
+    assert "Opening this section" in page
+    assert "正在打开这一节" in page
+    assert 'data-lang' in page
     assert 'id="lab"' in page
+
+
+def test_language_choice_accepts_only_the_three_modes():
+    from src.ui.i18n import language_choice
+
+    assert language_choice("en") == "en"
+    assert language_choice("zh") == "zh"
+    assert language_choice("both") == "both"
+    assert language_choice(None) == "both"
+    assert language_choice("fr") == "both"
 
 
 def test_topic_directory_links_to_lecture_and_sheet():

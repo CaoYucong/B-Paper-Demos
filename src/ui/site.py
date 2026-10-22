@@ -88,36 +88,157 @@ _LECTURE = """<!DOCTYPE html>
 <style>
 html, body { margin: 0; height: 100%; background: #F6F4F0; overflow: hidden; }
 iframe { display: block; width: 100%; height: 100%; border: 0; }
+html[data-pending] iframe { opacity: 0; pointer-events: none; }
+#opening {
+  display: none;
+  position: fixed;
+  inset: 0;
+  margin: 0;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  color: #4d5c68;
+  font: 16px/1.5 "Source Sans 3", "Source Sans Pro", "Segoe UI", sans-serif;
+  opacity: 0;
+}
+html[data-pending] #opening {
+  display: flex;
+  animation: b14-opening 0s 350ms forwards;
+}
+@keyframes b14-opening { to { opacity: 1; } }
+html[data-lang="en"] #opening .zh,
+html[data-lang="zh"] #opening .en { display: none; }
 </style>
-</head>
-<body>
-<iframe id="lab" title="__TITLE__" src="__SRC__"></iframe>
 <script>
 (function () {
-  const frame = document.getElementById("lab");
+  var pinned = window.location.hash || "";
+  window.__b14Pin = pinned;
+  var lang = "";
+  try { lang = localStorage.getItem("b14-language") || ""; } catch (error) {}
+  if (lang !== "zh" && lang !== "en") lang = "both";
+  window.__b14Lang = lang;
+  document.documentElement.setAttribute("data-lang", lang);
+  if (pinned.length > 1) document.documentElement.setAttribute("data-pending", "");
+  function keep(url) {
+    pinned = window.__b14Pin || "";
+    if (!pinned || url == null) return url;
+    var next = new URL(String(url), window.location.href);
+    if (next.pathname !== window.location.pathname) return url;
+    if (!next.hash) next.hash = pinned;
+    return next.pathname + next.search + next.hash;
+  }
+  var replace = history.replaceState.bind(history);
+  var push = history.pushState.bind(history);
+  history.replaceState = function (state, title, url) {
+    return replace(state, title, url === undefined ? url : keep(url));
+  };
+  history.pushState = function (state, title, url) {
+    return push(state, title, url === undefined ? url : keep(url));
+  };
+})();
+</script>
+</head>
+<body>
+<iframe id="lab" title="__TITLE__" data-src="__SRC__"></iframe>
+<p id="opening"><span class="en">Opening this section…</span><span class="zh">正在打开这一节…</span></p>
+<script>
+(function () {
+  var frame = document.getElementById("lab");
+  var base = frame.getAttribute("data-src");
+  var lang = window.__b14Lang || "";
+  if (lang === "zh" || lang === "en" || lang === "both") {
+    base += (base.indexOf("?") === -1 ? "?" : "&") + "lang=" + lang;
+  }
+  frame.src = base + (window.__b14Pin || "");
+
+  function sectionId() {
+    var hash = window.__b14Pin || window.location.hash || "";
+    if (hash.length < 2) return "";
+    try { return decodeURIComponent(hash.slice(1)); }
+    catch (error) { return hash.slice(1); }
+  }
+
+  function align() {
+    var id = sectionId();
+    if (!id) return true;
+    var doc;
+    try { doc = frame.contentDocument; }
+    catch (error) { return false; }
+    if (!doc) return false;
+    var el = doc.getElementById(id);
+    var scroller = doc.querySelector('[data-testid="stMain"]');
+    if (!el || !scroller) return false;
+    var delta = el.getBoundingClientRect().top - scroller.getBoundingClientRect().top;
+    if (Math.abs(delta) > 2) scroller.scrollTop += delta;
+    var after = el.getBoundingClientRect().top - scroller.getBoundingClientRect().top;
+    var maxScroll = scroller.scrollHeight - scroller.clientHeight;
+    var stuckAtEnd = maxScroll > 0 && scroller.scrollTop >= maxScroll - 2 && after > 24;
+    return Math.abs(after) <= 24 || stuckAtEnd;
+  }
+
+  var stable = 0;
+  var revealed = !document.documentElement.hasAttribute("data-pending");
+  var revealedAt = revealed ? performance.now() : 0;
+  var started = performance.now();
+  var userMoved = false;
+
+  function reveal() {
+    if (revealed) return;
+    revealed = true;
+    revealedAt = performance.now();
+    document.documentElement.removeAttribute("data-pending");
+  }
+
+  function tick(countStable) {
+    if (userMoved) return;
+    if (revealed && !countStable) return;
+    var ready = align();
+    if (revealed || !countStable) return;
+    if (ready) stable += 1;
+    else stable = 0;
+    if (stable >= 3 || performance.now() - started > 20000) reveal();
+  }
+
+  var lastMirrored = window.__b14Pin || "";
+
   function mirror() {
-    let hash = "";
-    try { hash = frame.contentWindow.location.hash; } catch (error) { return; }
-    if (!hash || hash === window.location.hash) return;
-    window.history.replaceState(null, "", window.location.pathname + window.location.search + hash);
-  }
-  let tries = 0;
-  function scrollToHash() {
-    const id = decodeURIComponent(window.location.hash.replace(/^#/, ""));
-    if (!id) return;
-    let el = null;
-    try { el = frame.contentDocument.getElementById(id); } catch (error) { return; }
-    if (el) {
-      el.scrollIntoView({block: "start"});
-      return;
+    var hash = "";
+    try { hash = frame.contentWindow.location.hash; }
+    catch (error) { return; }
+    if (!hash) return;
+    if (hash !== window.location.hash) {
+      window.__b14Pin = hash;
+      history.replaceState(null, "", window.location.pathname + window.location.search + hash);
     }
-    tries += 1;
-    if (tries < 80) window.setTimeout(scrollToHash, 100);
+    if (hash === lastMirrored) return;
+    lastMirrored = hash;
+    userMoved = false;
+    var n = 0;
+    var follow = window.setInterval(function () {
+      align();
+      n += 1;
+      if (n > 12) window.clearInterval(follow);
+    }, 50);
   }
+
   frame.addEventListener("load", function () {
-    scrollToHash();
+    var doc;
+    try { doc = frame.contentDocument; }
+    catch (error) { doc = null; }
+    if (doc) {
+      new MutationObserver(function () { tick(false); }).observe(doc.documentElement, {childList: true, subtree: true});
+      doc.addEventListener("wheel", function () { if (revealed) userMoved = true; }, {passive: true, capture: true});
+      doc.addEventListener("touchstart", function () { if (revealed) userMoved = true; }, {passive: true, capture: true});
+    }
+    tick(true);
     window.setInterval(mirror, 200);
   });
+
+  var hold = window.setInterval(function () {
+    if (userMoved) { window.clearInterval(hold); return; }
+    tick(true);
+    if (revealed && performance.now() - revealedAt > 1600) window.clearInterval(hold);
+  }, 50);
 })();
 </script>
 </body>

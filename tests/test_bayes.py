@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from src.bayes import (
+from src.b14.image_processing.lecture3.bayes import (
     gaussian_pdf,
     grid_map,
     normalised_posterior,

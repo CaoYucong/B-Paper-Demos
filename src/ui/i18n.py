@@ -7,6 +7,7 @@ selected lecture or experiment.
 
 from __future__ import annotations
 
+import html
 import re
 
 import streamlit as st
@@ -266,68 +267,106 @@ GLOSSARY: dict[str, tuple[str, str]] = {
 }
 
 
+def language_choice(raw: str | None) -> str:
+    """A stored language, or bilingual when the value is missing or unknown."""
+    return raw if raw in LANGUAGES else "both"
+
+
 def language() -> str:
     try:
         value = st.session_state.get("ui_language", "both")
     except Exception:
         return "both"
-    return value if value in LANGUAGES else "both"
+    return language_choice(value if isinstance(value, str) else None)
+
+
+def html_pair(en: str, zh: str) -> str:
+    """Both languages in the page. CSS shows the one the reader picked."""
+    return (
+        f'<span class="b14-en">{html.escape(en)}</span>'
+        f'<span class="b14-sep"> / </span>'
+        f'<span class="b14-zh">{html.escape(zh)}</span>'
+    )
 
 
 def t(en: str, zh: str) -> str:
-    mode = language()
-    if mode == "en":
-        return en
-    if mode == "zh":
-        return zh
+    return html_pair(en, zh)
+
+
+def plain(en: str, zh: str) -> str:
+    """Buttons, options, figures, and progress text cannot hide one language."""
     return f"{en} / {zh}"
+
+
+def split_pair(text: str) -> tuple[str, str] | None:
+    if " / " not in text or "<" in text or _CJK.search(text) is None:
+        return None
+    english, chinese = text.split(" / ", 1)
+    if _CJK.search(chinese) is None or _CJK.search(english):
+        return None
+    return english, chinese
+
+
+_SPAN = re.compile(r'<span class="b14-(en|zh|sep)">(.*?)</span>', re.S)
+
+
+def plain_from_spans(text: str) -> str:
+    matches = list(_SPAN.finditer(text))
+    if not matches:
+        return text
+    english = [html.unescape(match.group(2)) for match in matches if match.group(1) == "en"]
+    chinese = [html.unescape(match.group(2)) for match in matches if match.group(1) == "zh"]
+    if len(english) == 1 and len(chinese) == 1 and _SPAN.sub("", text).strip() == "":
+        return f"{english[0]} / {chinese[0]}"
+    return _SPAN.sub(
+        lambda match: "" if match.group(1) == "sep" else html.unescape(match.group(2)),
+        text,
+    )
 
 
 def L(text: str) -> str:
     """Split one ``English / 中文`` string. Strings without that shape are unchanged."""
-    if " / " not in text or _CJK.search(text) is None:
+    if "b14-en" in text:
+        return plain_from_spans(text)
+    pair = split_pair(text)
+    if pair is None:
         return text
-    english, chinese = text.split(" / ", 1)
-    if _CJK.search(chinese) is None or _CJK.search(english):
-        return text
-    return t(english, chinese)
+    return plain(*pair)
 
 
 def shown_label(text: str) -> str:
+    if "b14-en" in text:
+        return plain_from_spans(text)
     pair = GLOSSARY.get(text)
     if pair is not None:
-        return t(*pair)
+        return plain(*pair)
     return L(text)
 
 
-def shown_body(text: str) -> str | None:
-    """Translate prose. A short caption in the other language is omitted when a sibling remains."""
-    if not text or "<style" in text:
+def shown_body(text: str) -> str:
+    """Keep both languages in the page. A short single-language caption is tagged, not dropped."""
+    # Tags, anchors, and text we already marked must stay intact. A later
+    # language choice hides a marked caption; it must not hide a section anchor.
+    if not text or "<" in text:
         return text
     translated = shown_label(text)
     if translated != text:
         return translated
-    mode = language()
-    if mode == "both" or "$$" in text:
+    if "$$" in text:
         return text
     cjk = len(_CJK.findall(text))
     latin = sum(character.isascii() and character.isalpha() for character in text)
-    if mode == "en" and cjk >= 4 and latin < 15 and len(text) < 500:
-        return None
-    if mode == "zh" and cjk == 0 and latin >= 24 and len(text) < 500:
-        return None
+    if cjk >= 4 and latin < 15 and len(text) < 500:
+        return f'<span class="b14-only b14-zh"></span>\n\n{text}'
+    if cjk == 0 and latin >= 24 and len(text) < 500:
+        return f'<span class="b14-only b14-en"></span>\n\n{text}'
     return text
 
 
 def say(en: str, zh: str) -> None:
-    mode = language()
-    if mode == "en":
-        st.markdown(en)
-    elif mode == "zh":
-        st.markdown(zh)
-    else:
-        st.markdown(en)
-        st.caption(zh)
+    """Markdown stays markdown. The marker lets CSS hide one language."""
+    st.markdown(f'<span class="b14-only b14-en"></span>\n\n{en}', unsafe_allow_html=True)
+    st.markdown(f'<span class="b14-only b14-zh"></span>\n\n{zh}', unsafe_allow_html=True)
 
 
 def colour_notes(kind: str, low: float, high: float) -> tuple[str, str]:
@@ -356,14 +395,140 @@ def forget_translation_keys(*keys: str) -> None:
             st.session_state.pop(f"{key}@@{suffix}", None)
 
 
+_BOOT = """
+<script>
+(function () {
+  function choice(value) {
+    return value === "zh" || value === "en" || value === "both" ? value : "both";
+  }
+  function saved() {
+    try { return choice(localStorage.getItem("b14-language")); }
+    catch (error) { return "both"; }
+  }
+  function apply(lang) {
+    lang = choice(lang);
+    document.documentElement.setAttribute("data-lang", lang);
+    try {
+      if (window.top !== window) window.top.document.documentElement.setAttribute("data-lang", lang);
+    } catch (error) {}
+  }
+  apply(saved());
+  if (window.__b14LangPick) return;
+  window.__b14LangPick = true;
+  document.addEventListener("click", function (event) {
+    var button = event.target && event.target.closest ? event.target.closest("[data-set-lang]") : null;
+    if (!button) return;
+    event.preventDefault();
+    var lang = choice(button.getAttribute("data-set-lang"));
+    try { localStorage.setItem("b14-language", lang); } catch (error) {}
+    apply(lang);
+  }, true);
+})();
+</script>
+"""
+
+_HEADING = {"title": 1, "header": 2, "subheader": 3}
+_HTML_LABEL = {"slider", "select_slider", "number_input", "file_uploader", "selectbox", "radio", "text_input", "metric"}
+_ALERT = {"info", "warning", "success", "error"}
+_ORIGINAL_MARKDOWN = None
+
+
+def mount_language() -> None:
+    """Read the saved language before the page text is shown. Clicks do not rerun the script."""
+    st.html(_BOOT, unsafe_allow_javascript=True)
+
+
 def language_switch() -> None:
-    st.radio(
-        t("Language", "语言"),
-        list(LANGUAGES),
-        format_func=lambda key: LANGUAGE_LABELS[key],
-        horizontal=True,
-        key="ui_language",
+    st.markdown(
+        '<p class="b14-field">'
+        + t("Language", "语言")
+        + '</p><div class="b14-lang" role="radiogroup" aria-label="Language">'
+        + '<button type="button" data-set-lang="zh">中文</button>'
+        + '<button type="button" data-set-lang="en">English</button>'
+        + '<button type="button" data-set-lang="both">Bilingual</button>'
+        + "</div>",
+        unsafe_allow_html=True,
     )
+
+
+def _lift_markup(text: str) -> str:
+    def heading(match: re.Match[str]) -> str:
+        return f"<h{len(match.group(1))}>{match.group(2)}</h{len(match.group(1))}>"
+
+    text = re.sub(r"^(#{1,6})[ \t]+(.+)$", heading, text, count=1, flags=re.M)
+    text = re.sub(
+        r"\*\*((?:<span class=\"b14-(?:en|zh|sep)\">.*?</span>)+)\*\*",
+        r"<strong>\1</strong>",
+        text,
+        flags=re.S,
+    )
+
+    def link(match: re.Match[str]) -> str:
+        href = html.escape(match.group(3), quote=True)
+        return f'{match.group(1)}<a href="{href}">{match.group(2)}</a>'
+
+    return re.sub(
+        r"((?:&nbsp;|\s)*)\[((?:<span class=\"b14-(?:en|zh|sep)\">.*?</span>)+)\]\(([^)\s]+)\)",
+        link,
+        text,
+        flags=re.S,
+    )
+
+
+def present_text(text: str) -> tuple[str, bool]:
+    """Turn a bilingual string into HTML when CSS should be able to hide one half."""
+    if "<style" in text:
+        return text, True
+    if "b14-en" in text or "b14-zh" in text or "b14-only" in text:
+        return _lift_markup(text), True
+    heading = re.fullmatch(r"(#{1,6})[ \t]+([\s\S]+)", text)
+    if heading:
+        inner, unsafe = present_text(heading.group(2).strip())
+        if unsafe:
+            level = len(heading.group(1))
+            return f"<h{level}>{inner}</h{level}>", True
+    bold = re.fullmatch(r"\*\*([\s\S]+)\*\*", text)
+    if bold:
+        inner, unsafe = present_text(bold.group(1))
+        if unsafe:
+            return f"<strong>{inner}</strong>", True
+    link = re.fullmatch(r"((?:&nbsp;|\s)*)\[([^\]]+)\]\(([^)\s]+)\)", text)
+    if link:
+        inner, unsafe = present_text(link.group(2))
+        if unsafe:
+            href = html.escape(link.group(3), quote=True)
+            return f'{link.group(1)}<a href="{href}">{inner}</a>', True
+    if "\n\n" in text:
+        parts = text.split("\n\n")
+        rendered = [present_text(part) for part in parts]
+        if any(flag for _, flag in rendered):
+            chunks = [
+                f"<p>{html_text if flag else html.escape(part)}</p>"
+                for (html_text, flag), part in zip(rendered, parts)
+            ]
+            return "".join(chunks), True
+    pair = split_pair(text)
+    if pair is not None:
+        return html_pair(*pair), True
+    return text, False
+
+
+def _emit(body: str) -> None:
+    _ORIGINAL_MARKDOWN(body, unsafe_allow_html=True)
+
+
+def _label_of(args: tuple, kwargs: dict) -> str | None:
+    if args and isinstance(args[0], str):
+        return args[0]
+    label = kwargs.get("label")
+    return label if isinstance(label, str) else None
+
+
+def _put_label(args: tuple, kwargs: dict, label: str) -> tuple:
+    if args and isinstance(args[0], str):
+        return (label,) + args[1:], kwargs
+    kwargs["label"] = label
+    return args, kwargs
 
 
 def _translate_format(format_func):
@@ -380,10 +545,7 @@ def _wrap_label(name: str) -> None:
     original = getattr(st, name)
 
     def wrapped(*args, **kwargs):
-        if args and isinstance(args[0], str):
-            args = (shown_label(args[0]),) + args[1:]
-        if isinstance(kwargs.get("label"), str):
-            kwargs["label"] = shown_label(kwargs["label"])
+        label = _label_of(args, kwargs)
         if isinstance(kwargs.get("help"), str):
             kwargs["help"] = shown_label(kwargs["help"])
         if name in {"selectbox", "radio", "select_slider"}:
@@ -394,6 +556,23 @@ def _wrap_label(name: str) -> None:
             if lang_key not in st.session_state and user_key in st.session_state:
                 st.session_state[lang_key] = st.session_state[user_key]
             kwargs["key"] = lang_key
+        if name == "metric" and len(args) >= 2 and isinstance(args[1], str) and "b14-en" in args[1]:
+            args = (args[0], shown_label(args[1]), *args[2:])
+        if isinstance(label, str) and name in _HEADING:
+            html_text, unsafe = present_text(label)
+            if not unsafe:
+                html_text = html.escape(html_text)
+            _emit(f"<h{_HEADING[name]}>{html_text}</h{_HEADING[name]}>")
+            return None
+        if isinstance(label, str) and name in _HTML_LABEL:
+            html_text, unsafe = present_text(label)
+            if not unsafe:
+                html_text = html.escape(html_text)
+            _emit(f'<p class="b14-field">{html_text}</p>')
+            kwargs["label_visibility"] = "collapsed"
+            args, kwargs = _put_label(args, kwargs, shown_label(label) or " ")
+        elif isinstance(label, str):
+            args, kwargs = _put_label(args, kwargs, shown_label(label))
         result = original(*args, **kwargs)
         if isinstance(user_key, str):
             st.session_state[user_key] = result
@@ -406,10 +585,21 @@ def _wrap_body(name: str) -> None:
     original = getattr(st, name)
 
     def wrapped(*args, **kwargs):
-        if args and isinstance(args[0], str):
-            text = shown_body(args[0])
-            if text is None:
-                return None
+        if not args or not isinstance(args[0], str):
+            return original(*args, **kwargs)
+        text = shown_body(args[0])
+        html_text, unsafe = present_text(text)
+        if name in _ALERT:
+            body = html_text if unsafe else html.escape(text)
+            _emit(f'<div class="b14-note b14-note-{name}">{body}</div>')
+            return None
+        if name == "text" and unsafe:
+            _emit(html_text)
+            return None
+        if unsafe:
+            kwargs["unsafe_allow_html"] = True
+            args = (html_text,) + args[1:]
+        else:
             args = (text,) + args[1:]
         return original(*args, **kwargs)
 
@@ -418,10 +608,11 @@ def _wrap_body(name: str) -> None:
 
 def install() -> None:
     """Translate labels at display time. Call once, after page config and before widgets."""
-    global _INSTALLED
+    global _INSTALLED, _ORIGINAL_MARKDOWN
     if _INSTALLED:
         return
     _INSTALLED = True
+    _ORIGINAL_MARKDOWN = st.markdown
     for name in ("markdown", "caption", "write", "info", "warning", "success", "error", "text"):
         _wrap_body(name)
     for name in (

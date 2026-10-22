@@ -5,7 +5,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from src.operators import (
+from src.b14.image_processing.lecture3.operators import (
     adjoint_diff_x,
     adjoint_diff_y,
     apply_gradient_penalty,

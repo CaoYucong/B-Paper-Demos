@@ -4,11 +4,11 @@ from __future__ import annotations
 
 import numpy as np
 
-from src.comparison import run_comparison
-from src.degradation import degrade
-from src.operators import gaussian_psf, motion_blur_psf, psf_to_otf
-from src.synthetic_images import geometric_shapes
-from src.wiener import inverse_filter, wiener_filter
+from src.b14.image_processing.lecture3.comparison import run_comparison
+from src.b14.image_processing.lecture3.degradation import degrade
+from src.b14.image_processing.lecture3.operators import gaussian_psf, motion_blur_psf, psf_to_otf
+from src.b14.image_processing.synthetic_images import geometric_shapes
+from src.b14.image_processing.lecture3.wiener import inverse_filter, wiener_filter
 
 
 def test_wiener_uses_the_hermitian_formula():

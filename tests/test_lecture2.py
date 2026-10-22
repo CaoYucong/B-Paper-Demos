@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import numpy as np
 
-from src.lecture2.aliasing import dominant_frequency, downsample, stripe_image
-from src.lecture2.convolution_theorem import circular_convolve_same, linear_convolve_direct, linear_convolve_fft
-from src.lecture2.fourier import (
+from src.b14.image_processing.lecture2.aliasing import dominant_frequency, downsample, stripe_image
+from src.b14.image_processing.lecture2.convolution_theorem import circular_convolve_same, linear_convolve_direct, linear_convolve_fft
+from src.b14.image_processing.lecture2.fourier import (
     conjugate_symmetry_error,
     linearity_error,
     magnitude_only,
@@ -15,9 +15,9 @@ from src.lecture2.fourier import (
     swap_magnitude_phase,
     translation_phase_error,
 )
-from src.lecture2.frequency_filters import apply_frequency_mask, frequency_mask
-from src.lecture2.spatial_frequency import dft, sinusoid
-from src.synthetic_images import geometric_shapes
+from src.b14.image_processing.lecture2.frequency_filters import apply_frequency_mask, frequency_mask
+from src.b14.image_processing.lecture2.spatial_frequency import dft, sinusoid
+from src.b14.image_processing.synthetic_images import geometric_shapes
 
 
 def test_sinusoid_lands_on_one_frequency_pair():

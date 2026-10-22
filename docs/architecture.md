@@ -24,42 +24,13 @@ Each module has two tracks. `Lecture` opens the laboratory when that
 module is available, and a reserved page otherwise. `Sheet` is a
 placeholder on every module.
 
-Adding a future module means:
+Image Processing and Signal Analysis each scroll Home, Lectures 1–4, and
+Practice. The sidebar links jump to those sections on the Lecture page.
 
-1. Add a `Module` to the paper in `src/catalog.py`.
-2. When its status becomes `available`, point `render_lecture` at a new
-   `render_*` function. Do not copy the Image Processing pages.
-3. Give that module its own section list if it has lectures.
-
-Image Processing sections are Home, Lectures 1–4, and Practice. The sidebar
-links jump to those sections on the Lecture page.
-
-## Where the numerics live
-
-Lecture 3's original operators stay importable at their old paths, because
-the existing tests use them:
-
-- `src/operators.py`, `src/degradation.py`, `src/map_estimation.py`
-- `src/wiener.py`, `src/comparison.py`, `src/bayes.py`
-- `src/ui_forward.py` and the other original pages
-
-New code is organised by lecture:
-
-- `src/lecture1/` sampling, point operations, histograms, correlation,
-  Gaussian filters, Sobel, matched filtering
-- `src/lecture2/` sinusoids, DFT reconstructions, frequency masks,
-  linear-versus-circular convolution, aliasing
-- `src/lecture3/` directional motion, scalar Wiener gain, integer-phase
-  super-resolution
-- `src/lecture4/` storage and RLE, Huffman, DCT, the JPEG-like pipeline,
-  median, bilateral, non-local means, inpainting
-- `src/practice/problems.py` original exercises and the quiz
-- `src/signal/` the Signal Analysis formulas: analogue filters, digital
-  filters, FIR and IIR design, DFT and autoregressive spectra
-- `src/ui/signal_lab.py` the Signal Analysis page
-
-`src/ui/` is the bilingual shell. `src/ui/experiments.py` holds the
-experiment names used both by the select boxes and by the practice links.
+`docs/structure.md` is the file tree and the rules for adding a paper, a
+module, a lecture, or an experiment. Adding a module still means an entry
+in `src/catalog.py`, a package under that paper, and a branch in
+`render_lecture`. The new laboratory keeps its own pages.
 
 ## Shared image
 

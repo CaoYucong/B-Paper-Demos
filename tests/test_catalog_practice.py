@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from src.catalog import PAPERS, paper_by_id
-from src.practice.problems import PROBLEMS, QUIZ, grade_numeric
+from src.b14.image_processing.practice.problems import PROBLEMS, QUIZ, grade_numeric
 
 
 def test_catalog_keeps_extensions_as_placeholders():

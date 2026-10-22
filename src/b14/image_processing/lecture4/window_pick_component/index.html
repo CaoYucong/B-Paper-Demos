@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    html, body {
+      margin: 0;
+      font-family: "Source Sans 3", "Source Sans Pro", "Segoe UI", sans-serif;
+      font-size: 14px;
+      line-height: 1.35;
+      color: rgb(49, 51, 63);
+      background: transparent;
+    }
+    canvas {
+      width: 100%;
+      max-width: 720px;
+      display: block;
+      cursor: crosshair;
+      touch-action: none;
+      image-rendering: pixelated;
+      border-radius: 4px;
+    }
+    #hint { margin: 6px 0 0; max-width: 720px; min-height: 1.2em; }
+  </style>
+</head>
+<body>
+  <canvas id="picture"></canvas>
+  <p id="hint"></p>
+  <script>
+    const Streamlit = {
+      setComponentReady() {
+        window.parent.postMessage({
+          isStreamlitMessage: true,
+          type: "streamlit:componentReady",
+          apiVersion: 1,
+        }, "*");
+      },
+      setFrameHeight(height) {
+        window.parent.postMessage({
+          isStreamlitMessage: true,
+          type: "streamlit:setFrameHeight",
+          height,
+        }, "*");
+      },
+      setComponentValue(value) {
+        window.parent.postMessage({
+          isStreamlitMessage: true,
+          type: "streamlit:setComponentValue",
+          value,
+          dataType: "json",
+        }, "*");
+      },
+    };
+
+    const canvas = document.getElementById("picture");
+    const hint = document.getElementById("hint");
+    const context = canvas.getContext("2d");
+    let rows = 1;
+    let cols = 1;
+    let size = 3;
+    let anchor = "centre";
+    let marker = false;
+    let labelled = false;
+    let maxWidth = 720;
+    let row = 0;
+    let col = 0;
+    let qRow = 0;
+    let qCol = 0;
+    let placed = false;
+    let bitmap = null;
+    let pngToken = "";
+    let drag = null;
+    let lastSent = null;
+    let lastWidth = -1;
+
+    function clamp(value, low, high) {
+      return Math.min(high, Math.max(low, value));
+    }
+
+    function fit() {
+      window.requestAnimationFrame(() => {
+        Streamlit.setFrameHeight(Math.ceil(document.documentElement.scrollHeight));
+      });
+    }
+
+    function localPoint(event) {
+      const bounds = canvas.getBoundingClientRect();
+      return {
+        x: event.clientX - bounds.left,
+        y: event.clientY - bounds.top,
+        width: bounds.width,
+        height: bounds.height,
+      };
+    }
+
+    function cellAt(point) {
+      if (point.width <= 0 || point.height <= 0) return { row: row, col: col };
+      return {
+        row: clamp(Math.floor(point.y / point.height * rows), 0, rows - 1),
+        col: clamp(Math.floor(point.x / point.width * cols), 0, cols - 1),
+      };
+    }
+
+    function finite(value) {
+      const number = Number(value);
+      return Number.isFinite(number) ? number : 0;
+    }
+
+    function clampPosition(nextRow, nextCol) {
+      if (anchor === "row") {
+        return { row: clamp(finite(nextRow), 0, Math.max(0, rows - 1)), col: 0 };
+      }
+      if (anchor === "inside") {
+        const half = Math.floor(size / 2);
+        return {
+          row: clamp(finite(nextRow), half, Math.max(half, rows - half - 1)),
+          col: clamp(finite(nextCol), half, Math.max(half, cols - half - 1)),
+        };
+      }
+      if (anchor === "origin") {
+        return {
+          row: clamp(finite(nextRow), 0, Math.max(0, rows - size)),
+          col: clamp(finite(nextCol), 0, Math.max(0, cols - size)),
+        };
+      }
+      return {
+        row: clamp(finite(nextRow), 0, Math.max(0, rows - 1)),
+        col: clamp(finite(nextCol), 0, Math.max(0, cols - 1)),
+      };
+    }
+
+    function clampPixel(nextRow, nextCol) {
+      return {
+        row: clamp(finite(nextRow), 0, Math.max(0, rows - 1)),
+        col: clamp(finite(nextCol), 0, Math.max(0, cols - 1)),
+      };
+    }
+
+    function kernelBounds(originRow, originCol, pointWidth, pointHeight) {
+      if (anchor === "row") {
+        return {
+          left: 0,
+          top: originRow / rows * pointHeight,
+          right: pointWidth,
+          bottom: (originRow + 1) / rows * pointHeight,
+        };
+      }
+      const row0 = anchor === "origin" ? originRow : originRow - Math.floor(size / 2);
+      const col0 = anchor === "origin" ? originCol : originCol - Math.floor(size / 2);
+      return {
+        left: col0 / cols * pointWidth,
+        top: row0 / rows * pointHeight,
+        right: (col0 + size) / cols * pointWidth,
+        bottom: (row0 + size) / rows * pointHeight,
+      };
+    }
+
+    function markSpan(pointWidth) {
+      const cssWidth = canvas.clientWidth || pointWidth || 320;
+      const scale = pointWidth / cssWidth;
+      const cell = pointWidth / Math.max(cols, 1);
+      return Math.max(cell * 4, 32 * scale);
+    }
+
+    function badgeRect(cellRow, cellCol, pointWidth, pointHeight) {
+      const span = markSpan(pointWidth);
+      const cx = (cellCol + 0.5) / cols * pointWidth;
+      const cy = (cellRow + 0.5) / rows * pointHeight;
+      return {
+        left: cx - span / 2,
+        top: cy - span / 2,
+        right: cx + span / 2,
+        bottom: cy + span / 2,
+        cx: cx,
+        cy: cy,
+      };
+    }
+
+    function hitsBadge(point, cellRow, cellCol) {
+      const box = badgeRect(cellRow, cellCol, point.width, point.height);
+      return point.x >= box.left && point.x <= box.right && point.y >= box.top && point.y <= box.bottom;
+    }
+
+    function drawBadge(cellRow, cellCol, letter, fill, stroke) {
+      const box = badgeRect(cellRow, cellCol, canvas.width, canvas.height);
+      const width = box.right - box.left;
+      const height = box.bottom - box.top;
+      const scale = canvas.width / (canvas.clientWidth || canvas.width);
+      context.fillStyle = fill;
+      context.fillRect(box.left, box.top, width, height);
+      context.lineWidth = 3 * scale;
+      context.strokeStyle = "white";
+      context.strokeRect(box.left, box.top, width, height);
+      context.lineWidth = 1.5 * scale;
+      context.strokeStyle = stroke;
+      context.strokeRect(box.left, box.top, width, height);
+      context.fillStyle = "#111111";
+      context.font = `700 ${Math.round(height * 0.62)}px "Source Sans 3", "Source Sans Pro", sans-serif`;
+      context.textAlign = "center";
+      context.textBaseline = "middle";
+      context.fillText(letter, box.cx, box.cy);
+    }
+
+    function hitsCell(point, cellRow, cellCol) {
+      const cx = (cellCol + 0.5) / cols * point.width;
+      const cy = (cellRow + 0.5) / rows * point.height;
+      const reachX = Math.max(point.width / cols / 2, 22);
+      const reachY = Math.max(point.height / rows / 2, 22);
+      return Math.abs(point.x - cx) <= reachX && Math.abs(point.y - cy) <= reachY;
+    }
+
+    function hitsKernel(point, centreRow, centreCol) {
+      const box = kernelBounds(centreRow, centreCol, point.width, point.height);
+      const spanX = box.right - box.left;
+      const spanY = box.bottom - box.top;
+      const extraX = Math.max(0, (44 - spanX) / 2);
+      const extraY = Math.max(0, (44 - spanY) / 2);
+      return point.x >= box.left - extraX && point.x <= box.right + extraX
+        && point.y >= box.top - extraY && point.y <= box.bottom + extraY;
+    }
+
+    function drawAt(centreRow, centreCol, markRow, markCol) {
+      const cssWidth = canvas.clientWidth || 320;
+      const cssHeight = cssWidth * rows / cols;
+      const scale = window.devicePixelRatio || 1;
+      canvas.style.height = cssHeight + "px";
+      canvas.width = Math.max(1, Math.round(cssWidth * scale));
+      canvas.height = Math.max(1, Math.round(cssHeight * scale));
+      context.imageSmoothingEnabled = false;
+      context.clearRect(0, 0, canvas.width, canvas.height);
+      if (bitmap) context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+      if (labelled && marker) {
+        drawBadge(centreRow, centreCol, "p", "rgba(255, 75, 75, 0.55)", "rgb(214, 24, 24)");
+        const qr = markRow === undefined ? qRow : markRow;
+        const qc = markCol === undefined ? qCol : markCol;
+        drawBadge(qr, qc, "q", "rgba(244, 211, 94, 0.92)", "rgb(120, 72, 0)");
+        fit();
+        return;
+      }
+      const box = kernelBounds(centreRow, centreCol, canvas.width, canvas.height);
+      context.fillStyle = "rgba(255, 75, 75, 0.34)";
+      context.fillRect(box.left, box.top, box.right - box.left, box.bottom - box.top);
+      context.lineWidth = 3 * scale;
+      context.strokeStyle = "white";
+      context.strokeRect(box.left, box.top, box.right - box.left, box.bottom - box.top);
+      context.lineWidth = 1.5 * scale;
+      context.strokeStyle = "rgb(214, 24, 24)";
+      context.strokeRect(box.left, box.top, box.right - box.left, box.bottom - box.top);
+      if (anchor !== "row") {
+        const pixelW = canvas.width / cols;
+        const pixelH = canvas.height / rows;
+        context.lineWidth = Math.max(1, scale);
+        context.strokeStyle = "rgb(255, 214, 0)";
+        context.strokeRect(centreCol * pixelW, centreRow * pixelH, pixelW, pixelH);
+      }
+      if (marker) {
+        const qr = markRow === undefined ? qRow : markRow;
+        const qc = markCol === undefined ? qCol : markCol;
+        const pixelW = canvas.width / cols;
+        const pixelH = canvas.height / rows;
+        context.fillStyle = "rgba(244, 211, 94, 0.85)";
+        context.fillRect(qc * pixelW, qr * pixelH, pixelW, pixelH);
+        context.lineWidth = Math.max(1, scale);
+        context.strokeStyle = "rgb(120, 72, 0)";
+        context.strokeRect(qc * pixelW, qr * pixelH, pixelW, pixelH);
+      }
+      fit();
+    }
+
+    function commit(nextRow, nextCol, nextQRow, nextQCol) {
+      const placedAt = clampPosition(nextRow, nextCol);
+      row = placedAt.row;
+      col = placedAt.col;
+      if (marker) {
+        const qPlaced = clampPixel(nextQRow === undefined ? qRow : nextQRow, nextQCol === undefined ? qCol : nextQCol);
+        qRow = qPlaced.row;
+        qCol = qPlaced.col;
+      }
+      placed = true;
+      drawAt(row, col);
+      const value = { row: row, col: col };
+      if (marker) {
+        value.qRow = qRow;
+        value.qCol = qCol;
+      }
+      if (
+        lastSent && lastSent.row === value.row && lastSent.col === value.col
+        && lastSent.qRow === value.qRow && lastSent.qCol === value.qCol
+      ) return;
+      lastSent = value;
+      Streamlit.setComponentValue(value);
+    }
+
+    function loadImage(png) {
+      if (!png) {
+        bitmap = null;
+        drawAt(row, col);
+        return;
+      }
+      if (png === pngToken && bitmap) {
+        drawAt(row, col);
+        return;
+      }
+      pngToken = png;
+      const image = new Image();
+      const token = png;
+      image.onload = () => {
+        if (token !== pngToken) return;
+        bitmap = image;
+        drawAt(row, col);
+      };
+      image.src = "data:image/png;base64," + png;
+    }
+
+    canvas.addEventListener("pointerdown", (event) => {
+      if (event.button !== 0) return;
+      event.preventDefault();
+      const point = localPoint(event);
+      const cell = cellAt(point);
+      const onWindow = labelled && marker ? hitsBadge(point, row, col) : hitsKernel(point, row, col);
+      const onMark = marker && (labelled ? hitsBadge(point, qRow, qCol) : hitsCell(point, qRow, qCol));
+      let target = "place";
+      if (onMark && onWindow) {
+        const markDistance = Math.hypot(
+          point.x - (qCol + 0.5) / cols * point.width,
+          point.y - (qRow + 0.5) / rows * point.height,
+        );
+        const windowDistance = Math.hypot(
+          point.x - (col + 0.5) / cols * point.width,
+          point.y - (row + 0.5) / rows * point.height,
+        );
+        target = markDistance <= windowDistance ? "q" : "p";
+      } else if (onMark) {
+        target = "q";
+      } else if (onWindow) {
+        target = "p";
+      }
+      drag = {
+        pointerId: event.pointerId,
+        x: point.x,
+        y: point.y,
+        startRow: cell.row,
+        startCol: cell.col,
+        originRow: row,
+        originCol: col,
+        qOriginRow: qRow,
+        qOriginCol: qCol,
+        inside: target !== "place",
+        target: target,
+        moved: false,
+      };
+      canvas.style.cursor = drag.inside ? "grabbing" : "crosshair";
+      try { canvas.setPointerCapture(event.pointerId); } catch (error) { /* pointer already gone */ }
+    });
+
+    canvas.addEventListener("pointermove", (event) => {
+      const point = localPoint(event);
+      const over = (labelled && marker ? hitsBadge(point, row, col) : hitsKernel(point, row, col))
+        || (marker && (labelled ? hitsBadge(point, qRow, qCol) : hitsCell(point, qRow, qCol)));
+      if (!drag || drag.pointerId !== event.pointerId) {
+        canvas.style.cursor = over ? "grab" : "crosshair";
+        return;
+      }
+      const cell = cellAt(point);
+      if (Math.hypot(point.x - drag.x, point.y - drag.y) >= 4) drag.moved = true;
+      if (drag.target === "q" && drag.moved) {
+        const movedMark = clampPixel(
+          drag.qOriginRow + cell.row - drag.startRow,
+          drag.qOriginCol + cell.col - drag.startCol,
+        );
+        drawAt(row, col, movedMark.row, movedMark.col);
+        return;
+      }
+      if (drag.inside && drag.moved) {
+        const movedTo = clampPosition(
+          drag.originRow + cell.row - drag.startRow,
+          drag.originCol + cell.col - drag.startCol,
+        );
+        drawAt(movedTo.row, movedTo.col);
+      }
+    });
+
+    function finish(event) {
+      if (!drag || drag.pointerId !== event.pointerId) return;
+      const point = localPoint(event);
+      const cell = cellAt(point);
+      const target = drag.target;
+      const moved = drag.moved && drag.inside;
+      const shift = anchor === "origin" ? Math.floor((size - 1) / 2) : 0;
+      let nextRow = moved ? drag.originRow + cell.row - drag.startRow : cell.row - shift;
+      let nextCol = moved ? drag.originCol + cell.col - drag.startCol : cell.col - shift;
+      let nextQRow = qRow;
+      let nextQCol = qCol;
+      if (target === "q") {
+        nextRow = row;
+        nextCol = col;
+        nextQRow = drag.moved ? drag.qOriginRow + cell.row - drag.startRow : cell.row;
+        nextQCol = drag.moved ? drag.qOriginCol + cell.col - drag.startCol : cell.col;
+      }
+      drag = null;
+      commit(nextRow, nextCol, nextQRow, nextQCol);
+    }
+
+    canvas.addEventListener("pointerup", finish);
+    canvas.addEventListener("pointercancel", finish);
+
+    new ResizeObserver((entries) => {
+      const width = entries[0].contentRect.width;
+      if (Math.abs(width - lastWidth) < 0.5) return;
+      lastWidth = width;
+      if (cols > 0) drawAt(row, col);
+    }).observe(canvas.parentElement);
+
+    window.addEventListener("message", (event) => {
+      const data = event.data;
+      if (!data || data.type !== "streamlit:render") return;
+      const args = data.args || {};
+      const nextRows = Math.max(1, Number(args.rows) || 1);
+      const nextCols = Math.max(1, Number(args.cols) || 1);
+      const resized = nextRows !== rows || nextCols !== cols;
+      rows = nextRows;
+      cols = nextCols;
+      size = Math.max(1, Number(args.size) || 1);
+      anchor = args.anchor === "origin" || args.anchor === "inside" || args.anchor === "row" ? args.anchor : "centre";
+      marker = !!args.marker;
+      labelled = !!args.labelled;
+      maxWidth = Math.max(160, Number(args.maxWidth) || 720);
+      canvas.style.maxWidth = maxWidth + "px";
+      hint.style.maxWidth = maxWidth + "px";
+      hint.textContent = args.hint || "";
+      if (data.theme) {
+        if (data.theme.textColor) hint.style.color = data.theme.textColor;
+        if (data.theme.backgroundColor) document.body.style.background = data.theme.backgroundColor;
+      }
+      if (!drag && (!placed || resized)) {
+        const placedAt = clampPosition(args.row, args.col);
+        row = placedAt.row;
+        col = placedAt.col;
+        if (marker) {
+          const qPlaced = clampPixel(args.qRow, args.qCol);
+          qRow = qPlaced.row;
+          qCol = qPlaced.col;
+        }
+        placed = true;
+      } else if (!drag) {
+        const placedAt = clampPosition(row, col);
+        row = placedAt.row;
+        col = placedAt.col;
+      }
+      loadImage(args.png || "");
+    });
+
+    Streamlit.setComponentReady();
+    Streamlit.setFrameHeight(280);
+  </script>
+</body>
+</html>
