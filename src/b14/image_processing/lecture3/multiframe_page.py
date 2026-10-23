@@ -135,7 +135,7 @@ def _legend(count: int) -> None:
 
 
 def _grid(image: np.ndarray, title: str, dots=None, shades=None) -> None:
-    st.image(marked_grid_png(image, shown_label(title), dots=dots, shades=shades), use_container_width=True)
+    st.image(marked_grid_png(image, shown_label(title), dots=dots, shades=shades), width="stretch")
 
 
 def render_samples() -> None:

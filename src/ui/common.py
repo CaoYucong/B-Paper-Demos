@@ -31,7 +31,7 @@ def show_image(column, image: np.ndarray, title: str, kind: str = "image") -> No
     with column:
         st.image(
             image_png(image, shown_label(title), zmin=zmin, zmax=zmax, colorscale=colorscale),
-            use_container_width=True,
+            width="stretch",
         )
         low = float(np.min(image))
         high = float(np.max(image))

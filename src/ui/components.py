@@ -74,7 +74,7 @@ def show_array(image: np.ndarray, title: str, kind: str = "image", wide: bool = 
     array = np.asarray(image, dtype=np.float64)
     st.image(
         image_png(array, shown_label(title), zmin=zmin, zmax=zmax, colorscale=colorscale, wide=wide),
-        use_container_width=True,
+        width="stretch",
     )
     low = float(np.min(array))
     high = float(np.max(array))

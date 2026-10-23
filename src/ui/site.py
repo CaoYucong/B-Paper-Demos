@@ -11,7 +11,7 @@ import html
 from urllib.parse import quote
 
 from starlette.requests import Request
-from starlette.responses import HTMLResponse, RedirectResponse, Response
+from starlette.responses import HTMLResponse, RedirectResponse
 from starlette.routing import Route
 
 from src.catalog import PAPERS
@@ -26,6 +26,7 @@ _PAGE = """<!DOCTYPE html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>__TITLE__</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%20100%20100'%3E%3Ctext%20x='50%25'%20y='54%25'%20text-anchor='middle'%20dominant-baseline='central'%20font-size='82'%3E%F0%9F%94%AC%3C/text%3E%3C/svg%3E">
 <style>
 :root {
   color-scheme: light;
@@ -85,6 +86,7 @@ _LECTURE = """<!DOCTYPE html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>__TITLE__</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%20100%20100'%3E%3Ctext%20x='50%25'%20y='54%25'%20text-anchor='middle'%20dominant-baseline='central'%20font-size='82'%3E%F0%9F%94%AC%3C/text%3E%3C/svg%3E">
 <style>
 html, body { margin: 0; height: 100%; background: #F6F4F0; overflow: hidden; }
 iframe { display: block; width: 100%; height: 100%; border: 0; }

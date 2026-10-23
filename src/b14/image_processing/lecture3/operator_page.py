@@ -163,7 +163,7 @@ $$
             zmax=float(np.max(otf_display)),
             colorscale="Magma",
         ),
-        use_container_width=True,
+        width="stretch",
     )
     st.caption(
         f"高斯核的 max |Im H| = {float(np.max(np.abs(observation.otf.imag))):.2e}。"

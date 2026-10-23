@@ -35,7 +35,7 @@ def render_papers() -> None:
                 st.subheader(paper.code)
                 st.markdown(t(paper.title_en, paper.title_zh))
                 say(paper.summary_en, paper.summary_zh)
-                if st.button("Open / 进入", key=f"open-paper-{paper.id}", use_container_width=True):
+                if st.button("Open / 进入", key=f"open-paper-{paper.id}", width="stretch"):
                     open_route(paper_route(paper))
 
 def render_modules(route: Route) -> None:
@@ -56,7 +56,7 @@ def render_modules(route: Route) -> None:
             with st.container(border=True):
                 st.subheader(t(module.title_en, module.title_zh))
                 say(module.summary_en, module.summary_zh)
-                if st.button("Open / 进入", key=f"open-module-{module.id}", use_container_width=True):
+                if st.button("Open / 进入", key=f"open-module-{module.id}", width="stretch"):
                     open_route(topic_route(paper, module))
 
 def render_topic(route: Route) -> None:
@@ -91,7 +91,7 @@ def render_topic(route: Route) -> None:
                 st.subheader(t(title_en, title_zh))
                 say(body_en, body_zh)
                 label = "Open / 进入" if available else "View placeholder / 查看占位"
-                if st.button(label, key=f"open-track-{track}", use_container_width=True):
+                if st.button(label, key=f"open-track-{track}", width="stretch"):
                     open_route(track_route(paper, module, track))
 
 def render_planned(route: Route) -> None:
